@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import { GitRepoInfo } from '@/types/api'
+import { GitBranch, GitRepoInfo } from '@/types/api'
 
 /**
  * Parsed components of a manually entered icode/Gerrit clone URL.
@@ -88,5 +88,13 @@ export function buildIcodeManualRepo(parsed: ParsedIcodeUrl): GitRepoInfo {
     git_domain: parsed.git_domain,
     private: true,
     type: 'icode',
+  }
+}
+
+export function buildManualBranch(name: string): GitBranch {
+  return {
+    name: name.trim(),
+    protected: false,
+    default: true,
   }
 }

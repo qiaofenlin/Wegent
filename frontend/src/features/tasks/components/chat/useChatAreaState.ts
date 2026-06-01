@@ -479,7 +479,10 @@ export function useChatAreaState({
   // Save repository preference when it changes
   useEffect(() => {
     if (selectedRepo) {
-      saveLastRepo(selectedRepo.git_repo_id, selectedRepo.git_repo)
+      saveLastRepo(selectedRepo.git_repo_id, selectedRepo.git_repo, {
+        repoType: selectedRepo.type,
+        repoDomain: selectedRepo.git_domain,
+      })
     }
   }, [selectedRepo])
 

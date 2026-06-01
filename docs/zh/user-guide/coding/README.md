@@ -115,6 +115,7 @@ AI 编码是 Wegent 的核心功能，它使 AI 智能体能够在您的 Git 仓
 |------|------|
 | [管理代码任务](./managing-code-tasks.md) | 创建、执行和管理编码任务 |
 | [需求澄清模式](./spec-clarification-guide.md) | 将模糊需求精炼为清晰任务 |
+| [手动 URL 仓库持久化](./manual-url-repositories.md) | 通过 URL 添加的仓库如何持久保存和恢复 |
 
 ---
 

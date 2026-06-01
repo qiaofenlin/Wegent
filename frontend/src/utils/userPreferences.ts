@@ -14,6 +14,8 @@ const STORAGE_KEYS = {
   LAST_TEAM_ID_KNOWLEDGE: 'wegent_last_team_id_knowledge',
   LAST_REPO_ID: 'wegent_last_repo_id',
   LAST_REPO_NAME: 'wegent_last_repo_name',
+  LAST_REPO_TYPE: 'wegent_last_repo_type',
+  LAST_REPO_DOMAIN: 'wegent_last_repo_domain',
   DEFAULT_EXECUTION_TARGET: 'wegent_default_execution_target',
 } as const
 
@@ -155,10 +157,20 @@ export function getLastTeamIdByMode(mode: 'chat' | 'code' | 'knowledge' | 'task'
 /**
  * Save user's last selected repository
  */
-export function saveLastRepo(repoId: number, repoName: string): void {
+export function saveLastRepo(
+  repoId: number,
+  repoName: string,
+  options?: { repoType?: string; repoDomain?: string }
+): void {
   try {
     localStorage.setItem(STORAGE_KEYS.LAST_REPO_ID, String(repoId))
     localStorage.setItem(STORAGE_KEYS.LAST_REPO_NAME, repoName)
+    if (options?.repoType) {
+      localStorage.setItem(STORAGE_KEYS.LAST_REPO_TYPE, options.repoType)
+    }
+    if (options?.repoDomain) {
+      localStorage.setItem(STORAGE_KEYS.LAST_REPO_DOMAIN, options.repoDomain)
+    }
   } catch (error) {
     console.warn('Failed to save last repo to localStorage:', error)
   }
@@ -167,15 +179,24 @@ export function saveLastRepo(repoId: number, repoName: string): void {
 /**
  * Get user's last selected repository info
  */
-export function getLastRepo(): { repoId: number; repoName: string } | null {
+export function getLastRepo(): {
+  repoId: number
+  repoName: string
+  repoType?: string
+  repoDomain?: string
+} | null {
   try {
     const repoId = localStorage.getItem(STORAGE_KEYS.LAST_REPO_ID)
     const repoName = localStorage.getItem(STORAGE_KEYS.LAST_REPO_NAME)
+    const repoType = localStorage.getItem(STORAGE_KEYS.LAST_REPO_TYPE) || undefined
+    const repoDomain = localStorage.getItem(STORAGE_KEYS.LAST_REPO_DOMAIN) || undefined
 
     if (repoId && repoName) {
       return {
         repoId: parseInt(repoId, 10),
         repoName,
+        repoType,
+        repoDomain,
       }
     }
     return null

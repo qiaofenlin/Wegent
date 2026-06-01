@@ -12,6 +12,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { githubApis } from '@/apis/github'
 import { getLastRepo } from '@/utils/userPreferences'
 import { getRepositoryIdentity } from '@/features/tasks/components/selector/repositoryIdentity'
+import { mergeRepositoriesWithManualPreferences } from '@/features/tasks/components/selector/manualRepositoryPreferences'
 
 export interface UseRepositorySearchOptions {
   selectedRepo: GitRepoInfo | null
@@ -82,7 +83,10 @@ export function useRepositorySearch({
    */
   const loadRepositories = useCallback(async (): Promise<GitRepoInfo[]> => {
     if (!hasGitInfo()) {
-      return []
+      return mergeRepositoriesWithManualPreferences(
+        [],
+        user?.preferences?.manual_repositories
+      )
     }
 
     setLoading(true)
@@ -90,22 +94,29 @@ export function useRepositorySearch({
 
     try {
       const data = await githubApis.getRepositories()
-      setRepos(data)
-      setCachedRepos(data)
+      const merged = mergeRepositoriesWithManualPreferences(
+        data,
+        user?.preferences?.manual_repositories
+      )
+      setRepos(merged)
+      setCachedRepos(merged)
       setHasInitiallyLoaded(true)
       setError(null)
-      return data
+      return merged
     } catch {
       setError('Failed to load repositories')
       toast({
         variant: 'destructive',
         title: 'Failed to load repositories',
       })
-      return []
+      return mergeRepositoriesWithManualPreferences(
+        [],
+        user?.preferences?.manual_repositories
+      )
     } finally {
       setLoading(false)
     }
-  }, [hasGitInfo, toast])
+  }, [hasGitInfo, toast, user?.preferences?.manual_repositories])
 
   /**
    * Search repositories locally (in cache)
@@ -145,7 +156,12 @@ export function useRepositorySearch({
         }
 
         // Use remote search results directly (replace, not merge)
-        setRepos(results)
+        setRepos(
+          mergeRepositoriesWithManualPreferences(
+            results,
+            user?.preferences?.manual_repositories
+          )
+        )
         setError(null)
       } catch {
         if (requestId === searchRequestIdRef.current) {
@@ -157,7 +173,7 @@ export function useRepositorySearch({
         }
       }
     },
-    [cachedRepos]
+    [cachedRepos, user?.preferences?.manual_repositories]
   )
 
   /**
@@ -215,12 +231,21 @@ export function useRepositorySearch({
           timeout: 30,
         })
         if (requestId === searchRequestIdRef.current) {
-          setRepos(results)
+          setRepos(
+            mergeRepositoriesWithManualPreferences(
+              results,
+              user?.preferences?.manual_repositories
+            )
+          )
         }
       } else {
         const data = await githubApis.getRepositories()
-        setRepos(data)
-        setCachedRepos(data)
+        const merged = mergeRepositoriesWithManualPreferences(
+          data,
+          user?.preferences?.manual_repositories
+        )
+        setRepos(merged)
+        setCachedRepos(merged)
       }
 
       toast({ title: t('branches.refresh_success') })
@@ -229,7 +254,7 @@ export function useRepositorySearch({
     } finally {
       setIsRefreshing(false)
     }
-  }, [isRefreshing, currentSearchQuery, toast, t])
+  }, [isRefreshing, currentSearchQuery, toast, t, user?.preferences?.manual_repositories])
 
   /**
    * Handle repository selection change
@@ -282,6 +307,18 @@ export function useRepositorySearch({
     }
   }, [])
 
+  // Keep visible repo lists in sync when manual repositories in user preferences change.
+  useEffect(() => {
+    const merged = mergeRepositoriesWithManualPreferences(
+      cachedRepos.filter(repo => !repo.is_manual),
+      user?.preferences?.manual_repositories
+    )
+    setCachedRepos(merged)
+    if (!currentSearchQuery.trim()) {
+      setRepos(merged)
+    }
+  }, [user?.preferences?.manual_repositories, currentSearchQuery])
+
   /**
    * Centralized repository selection logic
    * Handles all scenarios: mount, task selection, and restoration
@@ -302,7 +339,11 @@ export function useRepositorySearch({
           return
         }
 
-        const repoInList = repos.find(r => r.git_repo === selectedTaskDetail.git_repo)
+        const repoInList = repos.find(
+          r =>
+            r.git_repo === selectedTaskDetail.git_repo &&
+            r.git_domain === selectedTaskDetail.git_domain
+        )
         if (repoInList) {
           handleRepoChange(repoInList)
           return
@@ -318,7 +359,11 @@ export function useRepositorySearch({
 
           if (result && result.length > 0) {
             const matched =
-              result.find(r => r.git_repo === selectedTaskDetail.git_repo) ?? result[0]
+              result.find(
+                r =>
+                  r.git_repo === selectedTaskDetail.git_repo &&
+                  r.git_domain === selectedTaskDetail.git_domain
+              ) ?? result[0]
             handleRepoChange(matched)
             setError(null)
           } else {
@@ -356,7 +401,11 @@ export function useRepositorySearch({
         if (lastRepo) {
           const repoToRestore =
             repoList.find(
-              r => r.git_repo_id === lastRepo.repoId && r.git_repo === lastRepo.repoName
+              r =>
+                r.git_repo_id === lastRepo.repoId &&
+                r.git_repo === lastRepo.repoName &&
+                (!lastRepo.repoType || r.type === lastRepo.repoType) &&
+                (!lastRepo.repoDomain || r.git_domain === lastRepo.repoDomain)
             ) ?? repoList.find(r => r.git_repo_id === lastRepo.repoId)
           if (repoToRestore) {
             handleRepoChange(repoToRestore)

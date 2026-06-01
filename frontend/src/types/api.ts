@@ -10,6 +10,16 @@ export interface QuickAccessConfig {
   teams: number[] // User's selected team IDs (excluding system recommended)
 }
 
+export interface ManualRepositoryPreference {
+  type: 'github' | 'gitlab' | 'gitee' | 'gitea' | 'gerrit' | 'icode'
+  git_domain: string
+  git_repo: string
+  git_url: string
+  display_name: string
+  default_branch?: string | null
+  is_manual: true
+}
+
 export interface UserPreferences {
   send_key: 'enter' | 'cmd_enter'
   search_key?: 'cmd_k' | 'cmd_f' | 'disabled'
@@ -17,6 +27,8 @@ export interface UserPreferences {
   memory_enabled?: boolean
   /** Default execution target: 'cloud' for cloud mode, or device_id for a specific device */
   default_execution_target?: string | null
+  /** User-persisted repositories added manually via clone URL */
+  manual_repositories?: ManualRepositoryPreference[]
 }
 
 // User Types
@@ -440,6 +452,10 @@ export interface GitRepoInfo {
   private: boolean
   /** Type: "github" | "gitlab" | "gitee" | "gitea" | "gerrit" | "icode" */
   type: 'github' | 'gitlab' | 'gitee' | 'gitea' | 'gerrit' | 'icode'
+  /** Whether the repository was added manually via URL and restored from preferences */
+  is_manual?: boolean
+  /** Default branch for manually persisted repositories */
+  default_branch?: string | null
 }
 
 export interface GitBranch {

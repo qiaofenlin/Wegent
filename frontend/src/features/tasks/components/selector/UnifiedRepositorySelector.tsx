@@ -23,10 +23,16 @@ import { useToast } from '@/hooks/use-toast'
 import { useRepositorySearch } from '../../hooks/useRepositorySearch'
 import { RepoListView } from './RepoListView'
 import { BranchListView } from './BranchListView'
+import { ManualBranchEditor } from './ManualBranchEditor'
 import { TaskContext } from '../../contexts/taskContext'
 import { getRepositoryIdentity } from './repositoryIdentity'
 import { IcodeManualUrlDialog } from './IcodeManualUrlDialog'
 import { useUser } from '@/features/common/UserContext'
+import {
+  buildManualRepositoryPreference,
+  updateManualRepositoryPreferenceBranch,
+  upsertManualRepositoryPreference,
+} from './manualRepositoryPreferences'
 
 /**
  * Props for UnifiedRepositorySelector component
@@ -51,7 +57,7 @@ export interface UnifiedRepositorySelectorProps {
 /**
  * View state for the unified selector
  */
-type SelectorView = 'repo' | 'branch'
+type SelectorView = 'repo' | 'branch' | 'manual-branch'
 
 /**
  * Animation variants for drill-down transitions
@@ -125,7 +131,7 @@ export default function UnifiedRepositorySelector({
 
   // Manual URL dialog state (used for icode/Gerrit which lack REST API)
   const [manualDialogOpen, setManualDialogOpen] = useState(false)
-  const { user } = useUser()
+  const { user, updatePreferences } = useUser()
   const hasIcodeAccount = useMemo(
     () => Boolean(user?.git_info?.some(g => g.type === 'icode' || g.type === 'gerrit')),
     [user]
@@ -349,9 +355,14 @@ export default function UnifiedRepositorySelector({
       // Set direction for slide animation
       setSlideDirection('left')
       // After selecting repo, automatically switch to branch view
-      setCurrentView('branch')
+      const repo = repos.find(r => getRepositoryIdentity(r) === value)
+      if (repo && (repo.type === 'icode' || repo.type === 'gerrit')) {
+        setCurrentView('manual-branch')
+      } else {
+        setCurrentView('branch')
+      }
     },
-    [handleRepoSelectFromSearch, requiresWorkspace, onRequiresWorkspaceChange]
+    [handleRepoSelectFromSearch, repos, requiresWorkspace, onRequiresWorkspaceChange]
   )
 
   // Handle branch selection
@@ -372,6 +383,35 @@ export default function UnifiedRepositorySelector({
     setSlideDirection('right')
     setCurrentView('repo')
   }, [])
+
+  const handleManualBranchConfirm = useCallback(
+    async (branchName: string | null) => {
+      if (!selectedRepo) return
+
+      const branch = branchName
+        ? {
+            name: branchName,
+            protected: false,
+            default: true,
+          }
+        : null
+
+      if (user) {
+        const manualRepositories = updateManualRepositoryPreferenceBranch(
+          user.preferences?.manual_repositories,
+          selectedRepo,
+          branchName
+        )
+        await updatePreferences({
+          manual_repositories: manualRepositories,
+        })
+      }
+
+      onBranchChange(branch)
+      setIsOpen(false)
+    },
+    [onBranchChange, selectedRepo, updatePreferences, user]
+  )
 
   // Handle requires workspace toggle
   const handleRequiresWorkspaceToggle = useCallback(
@@ -596,6 +636,25 @@ export default function UnifiedRepositorySelector({
                 />
               </motion.div>
             )}
+
+            {currentView === 'manual-branch' && (
+              <motion.div
+                key="manual-branch-view"
+                initial="enterFromRight"
+                animate="center"
+                exit="exitToRight"
+                variants={slideVariants}
+                transition={slideTransition}
+                className="flex flex-col flex-1 min-h-0"
+              >
+                <ManualBranchEditor
+                  repoName={selectedRepo?.git_repo ?? ''}
+                  branchName={selectedBranch?.name || selectedRepo?.default_branch || null}
+                  onBack={handleBackToRepo}
+                  onConfirm={handleManualBranchConfirm}
+                />
+              </motion.div>
+            )}
           </AnimatePresence>
         </PopoverContent>
       </Popover>
@@ -609,9 +668,19 @@ export default function UnifiedRepositorySelector({
       <IcodeManualUrlDialog
         open={manualDialogOpen}
         onOpenChange={setManualDialogOpen}
-        onSubmit={(repo, branch) => {
+        onSubmit={async (repo, branch) => {
           if (!requiresWorkspace && onRequiresWorkspaceChange) {
             onRequiresWorkspaceChange(true)
+          }
+          if (user) {
+            const nextPreference = buildManualRepositoryPreference(repo, branch.name)
+            const manualRepositories = upsertManualRepositoryPreference(
+              user.preferences?.manual_repositories,
+              nextPreference
+            )
+            await updatePreferences({
+              manual_repositories: manualRepositories,
+            })
           }
           onRepoChange(repo)
           onBranchChange(branch)

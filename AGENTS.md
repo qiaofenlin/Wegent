@@ -26,6 +26,8 @@ Wegent is an open-source AI-native operating system for defining, organizing, an
 - When adding new features, put detailed docs in `docs/en/` and `docs/zh/`, reference from AGENTS.md
 - Every user-visible feature, workflow change, integration expansion, or operational behavior change MUST have its own dedicated documentation file under `docs/`
 - Do not only update an existing overview page when the change introduces new behavior; add a standalone doc page for the new requirement and then link it from the relevant index/guide pages
+- For Baidu-specific requirements, also create a dedicated requirement record under `baidu_doc/features/` without waiting for an explicit user reminder
+- The default Baidu requirement flow is: create feature doc in `baidu_doc/features/` first, then implement, then update the relevant README/index links
 
 **Recent design docs:**
 - Prompt caching optimization via dynamic context injection: [`docs/zh/developer-guide/dynamic-context.md`](docs/zh/developer-guide/dynamic-context.md)

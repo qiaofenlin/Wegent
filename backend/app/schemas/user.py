@@ -30,6 +30,18 @@ class QuickAccessPreference(BaseModel):
     teams: List[int] = Field(default_factory=list)
 
 
+class ManualRepositoryPreference(BaseModel):
+    """Persisted manual repository entry added from a clone URL."""
+
+    type: Literal["github", "gitlab", "gitee", "gitea", "gerrit", "icode"]
+    git_domain: str
+    git_repo: str
+    git_url: str
+    display_name: str
+    default_branch: Optional[str] = None
+    is_manual: bool = True
+
+
 class UserPreferences(BaseModel):
     """User preferences model"""
 
@@ -40,6 +52,7 @@ class UserPreferences(BaseModel):
     quick_access: Optional[QuickAccessPreference] = None
     # Default execution target: 'cloud' for cloud mode, or device_id for a specific device
     default_execution_target: Optional[str] = None
+    manual_repositories: List[ManualRepositoryPreference] = Field(default_factory=list)
 
 
 class Token(BaseModel):
