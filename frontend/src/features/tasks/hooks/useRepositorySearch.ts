@@ -335,17 +335,40 @@ export function useRepositorySearch({
 
       // Scenario 1: Task is selected - use task's repository
       if (selectedTaskDetail?.git_repo) {
-        if (selectedRepo?.git_repo === selectedTaskDetail.git_repo) {
+        if (
+          selectedRepo?.git_repo === selectedTaskDetail.git_repo &&
+          selectedRepo?.git_domain === selectedTaskDetail.git_domain
+        ) {
           return
         }
 
-        const repoInList = repos.find(
+        const repoInList =
+          repos.find(
+            r =>
+              r.git_repo === selectedTaskDetail.git_repo &&
+              r.git_domain === selectedTaskDetail.git_domain
+          ) ||
+          cachedRepos.find(
+            r =>
+              r.git_repo === selectedTaskDetail.git_repo &&
+              r.git_domain === selectedTaskDetail.git_domain
+          )
+
+        if (repoInList) {
+          handleRepoChange(repoInList)
+          return
+        }
+
+        const manualRepo = mergeRepositoriesWithManualPreferences(
+          [],
+          user?.preferences?.manual_repositories
+        ).find(
           r =>
             r.git_repo === selectedTaskDetail.git_repo &&
             r.git_domain === selectedTaskDetail.git_domain
         )
-        if (repoInList) {
-          handleRepoChange(repoInList)
+        if (manualRepo) {
+          handleRepoChange(manualRepo)
           return
         }
 
