@@ -76,6 +76,7 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
   const [platforms, setPlatforms] = useState<GitInfo[]>([])
   const [domain, setDomain] = useState('')
   const [token, setToken] = useState('')
+  const [ugateToken, setUgateToken] = useState('')
   const [username, setUsername] = useState('')
   const [type, setType] = useState<GitInfo['type']>('github')
   const [authType, setAuthType] = useState<'digest' | 'basic'>('digest')
@@ -84,6 +85,8 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
   const isGitee = type === 'gitee'
   const isGitea = type === 'gitea'
   const isGerrit = type === 'gerrit'
+  const isIcode = type === 'icode'
+  const isGerritLike = isGerrit || isIcode
 
   const isDomainInvalid = useMemo(() => {
     if (!domain) return false
@@ -113,13 +116,17 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
         const sanitizedDomain = sanitizeDomainInput(editInfo.git_domain)
         setDomain(sanitizedDomain)
         setToken(editInfo.git_token)
+        setUgateToken(editInfo.ugate_token || '')
         setUsername(editInfo.user_name || '')
         setType(editInfo.type)
-        setAuthType(editInfo.auth_type || 'digest')
+        // icode defaults to basic, gerrit defaults to digest
+        const defaultAuth = editInfo.type === 'icode' ? 'basic' : 'digest'
+        setAuthType(editInfo.auth_type || defaultAuth)
       } else {
         // For add mode, default to github.com when type is github
         setDomain('github.com')
         setToken('')
+        setUgateToken('')
         setUsername('')
         setType('github')
         setAuthType('digest')
@@ -143,9 +150,9 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
       return
     }
 
-    // Gerrit and Gitea require username
-    if ((isGerrit || isGitea) && !usernameToSave) {
-      const platformName = isGerrit ? 'Gerrit' : 'Gitea'
+    // Gerrit-like (Gerrit, icode) and Gitea require username
+    if ((isGerritLike || isGitea) && !usernameToSave) {
+      const platformName = isIcode ? 'icode' : isGerrit ? 'Gerrit' : 'Gitea'
       toast({
         variant: 'destructive',
         title: `${platformName} username is required`,
@@ -165,8 +172,9 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
     try {
       // Pass existing id when editing to update instead of create new record
       const existingId = mode === 'edit' && editInfo?.id ? editInfo.id : undefined
-      // Pass authType for Gerrit
-      const authTypeToSave = isGerrit ? authType : undefined
+      // Pass authType for Gerrit-like providers (Gerrit, icode)
+      const authTypeToSave = isGerritLike ? authType : undefined
+      const ugateTokenToSave = isIcode ? ugateToken.trim() : undefined
       await saveGitToken(
         user,
         domainToSave,
@@ -174,7 +182,8 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
         usernameToSave,
         type,
         existingId,
-        authTypeToSave
+        authTypeToSave,
+        ugateTokenToSave
       )
       onClose()
       await refresh()
@@ -275,9 +284,27 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
                 onChange={() => {
                   setType('gerrit')
                   setDomain('')
+                  setAuthType('digest')
                 }}
               />
               {t('common:github.platform_gerrit') || 'Gerrit'}
+            </label>
+            <label
+              className="flex items-center gap-1 text-sm text-text-primary"
+              title={t('common:github.platform_icode') || 'icode'}
+            >
+              <input
+                type="radio"
+                value="icode"
+                checked={isIcode}
+                onChange={() => {
+                  setType('icode')
+                  setDomain('')
+                  setAuthType('basic')
+                }}
+                data-testid="icode-platform-radio"
+              />
+              {t('common:github.platform_icode') || 'icode'}
             </label>
           </div>
         </div>
@@ -296,11 +323,13 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
                 ? 'e.g. github.com or github.enterprise.com'
                 : isGerrit
                   ? 'e.g. http://gerrit.company.com or gerrit.company.com'
-                  : isGitee
-                    ? 'e.g. gitee.com'
-                    : isGitea
-                      ? 'e.g. gitea.com or gitea.company.com'
-                      : 'e.g. http://gitlab.example.com or gitlab.example.com'
+                  : isIcode
+                    ? 'e.g. icode.baidu.com'
+                    : isGitee
+                      ? 'e.g. gitee.com'
+                      : isGitea
+                        ? 'e.g. gitea.com or gitea.company.com'
+                        : 'e.g. http://gitlab.example.com or gitlab.example.com'
             }
             className="w-full px-3 py-2 bg-base border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent"
           />
@@ -308,8 +337,8 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
             <p className="mt-1 text-xs text-red-500">{t('common:github.error.invalid_domain')}</p>
           )}
         </div>
-        {/* Username input (Gerrit and Gitea only) */}
-        {(isGerrit || isGitea) && (
+        {/* Username input (Gerrit-like and Gitea only) */}
+        {(isGerritLike || isGitea) && (
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">
               {t('common:github.username') || 'Username'}
@@ -323,8 +352,8 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
             />
           </div>
         )}
-        {/* Authentication type selection (Gerrit only) */}
-        {isGerrit && (
+        {/* Authentication type selection (Gerrit-like only) */}
+        {isGerritLike && (
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">
               {t('common:github.auth_type') || 'Authentication Method'}
@@ -356,9 +385,11 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
         {/* Token input */}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            {isGerrit
-              ? t('common:github.token.title_gerrit') || 'HTTP password'
-              : t('common:github.token.title')}
+            {isIcode
+              ? t('common:github.token.title_icode') || 'ugate token'
+              : isGerritLike
+                ? t('common:github.token.title_gerrit') || 'HTTP password'
+                : t('common:github.token.title')}
           </label>
           <input
             type="password"
@@ -367,18 +398,37 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
             placeholder={
               type === 'github'
                 ? t('common:github.token.placeholder_github')
-                : isGerrit
-                  ? t('common:github.token.placeholder_gerrit') ||
-                    'HTTP password from Gerrit Settings'
+                : isGerritLike
+                  ? t(`common:github.token.placeholder_${type}`) ||
+                    'HTTP password from platform settings'
                   : isGitee
                     ? t('common:github.token.placeholder_gitee') || 'gitee-personal-access-token'
                     : isGitea
-                      ? t('common:github.token.placeholder_gitea') || 'Gitea personal access token'
+                      ? t('common:github.token.placeholder_gitea') ||
+                        'Gitea personal access token'
                       : t('common:github.token.placeholder_gitlab')
             }
             className="w-full px-3 py-2 bg-base border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent"
           />
         </div>
+        {/* ugate token input (icode only) */}
+        {isIcode && (
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              {t('common:github.token.title_ugate') || 'ugate token'}
+            </label>
+            <input
+              type="password"
+              value={ugateToken}
+              onChange={e => setUgateToken(e.target.value)}
+              placeholder={
+                t('common:github.token.placeholder_ugate') || 'JWT token from uuap.baidu.com/agent/token'
+              }
+              className="w-full px-3 py-2 bg-base border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent"
+              data-testid="ugate-token-input"
+            />
+          </div>
+        )}
         {/* Get guidance */}
         <div className="bg-surface border border-border rounded-md p-3">
           <p className="text-xs text-text-muted mb-2">
@@ -389,8 +439,9 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
                   ? t('common:github.howto.gitee.title') || 'How to get your Gitee token:'
                   : isGitea
                     ? t('common:github.howto.gitea.title') || 'How to get your Gitea token:'
-                    : isGerrit
-                      ? t('common:github.howto.gerrit.title') || 'How to get Gerrit HTTP password:'
+                    : isGerritLike
+                      ? t(`common:github.howto.${type}.title`) ||
+                        'How to get HTTP password:'
                       : t('common:github.howto.gitlab.title')}
             </strong>
           </p>
@@ -455,32 +506,53 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
               <p className="text-xs text-text-muted mb-2">{t('common:github.howto.gitea.step3')}</p>
               <p className="text-xs text-warning">{t('common:github.howto.gitea.step4')}</p>
             </>
-          ) : isGerrit ? (
+          ) : isIcode ? (
             <>
               <p className="text-xs text-text-muted mb-2 flex items-center gap-1">
                 {t('common:github.howto.step1_visit') || 'Visit: '}
                 <a
-                  href={isGerrit && domain ? `https://${domain}/settings/#HTTPCredentials` : '#'}
+                  href="https://icode.baidu.com/settings/#http-credentials"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 underline truncate max-w-[220px] inline-block align-bottom"
+                  title="https://icode.baidu.com/settings/#http-credentials"
+                >
+                  icode.baidu.com/settings
+                </a>
+              </p>
+              <p className="text-xs text-text-muted mb-2">
+                {t('common:github.howto.icode.step2')}
+              </p>
+              <p className="text-xs text-text-muted">
+                {t('common:github.howto.icode.step3')}
+              </p>
+            </>
+          ) : isGerritLike ? (
+            <>
+              <p className="text-xs text-text-muted mb-2 flex items-center gap-1">
+                {t('common:github.howto.step1_visit') || 'Visit: '}
+                <a
+                  href={domain ? `https://${domain}/settings/#HTTPCredentials` : '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:text-primary/80 underline truncate max-w-[220px] inline-block align-bottom"
                   title={
-                    isGerrit && domain
+                    domain
                       ? `https://${domain}/settings/#HTTPCredentials`
-                      : 'your-gerrit-domain/settings/#HTTPCredentials'
+                      : `your-${type}-domain/settings/#HTTPCredentials`
                   }
                 >
-                  {isGerrit && domain
+                  {domain
                     ? `https://${domain}/settings/#HTTPCredentials`
-                    : 'your-gerrit-domain/settings/#HTTPCredentials'}
+                    : `your-${type}-domain/settings/#HTTPCredentials`}
                 </a>
               </p>
               <p className="text-xs text-text-muted mb-2">
-                {t('common:github.howto.gerrit.step2') ||
+                {t(`common:github.howto.${type}.step2`) ||
                   'Generate a new HTTP password under "HTTP Credentials"'}
               </p>
               <p className="text-xs text-text-muted">
-                {t('common:github.howto.gerrit.step3') ||
+                {t(`common:github.howto.${type}.step3`) ||
                   'Copy the username and password, and paste them here'}
               </p>
             </>
@@ -524,7 +596,7 @@ const GitHubEdit: React.FC<GitHubEditProps> = ({ isOpen, onClose, mode, editInfo
           disabled={
             !domain ||
             isDomainInvalid ||
-            ((isGerrit || isGitea) && !username.trim()) ||
+            ((isGerritLike || isGitea) && !username.trim()) ||
             !token.trim() ||
             tokenSaving
           }

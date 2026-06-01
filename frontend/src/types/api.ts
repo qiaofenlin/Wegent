@@ -51,9 +51,9 @@ export interface GitInfo {
   id?: string
   git_domain: string
   git_token: string
-  /** Type: "github" | "gitlab" | "gitee" | "gitea" | "gerrit" */
-  type: 'github' | 'gitlab' | 'gitee' | 'gitea' | 'gerrit'
-  /** Username (required for Gerrit) */
+  /** Type: "github" | "gitlab" | "gitee" | "gitea" | "gerrit" | "icode" */
+  type: 'github' | 'gitlab' | 'gitee' | 'gitea' | 'gerrit' | 'icode'
+  /** Username (required for Gerrit and icode) */
   user_name?: string
   /** Git user ID (from provider) */
   git_id?: string
@@ -61,8 +61,10 @@ export interface GitInfo {
   git_login?: string
   /** Git email */
   git_email?: string
-  /** Authentication type for Gerrit: 'digest' or 'basic' */
+  /** Authentication type for Gerrit/icode: 'digest' or 'basic' */
   auth_type?: 'digest' | 'basic'
+  /** ugate token for icode login (used for icode-cli operations) */
+  ugate_token?: string
 }
 
 // Bot Types
@@ -436,8 +438,8 @@ export interface GitRepoInfo {
   git_url: string
   git_domain: string
   private: boolean
-  /** Type: "github" | "gitlab" | "gitee" */
-  type: 'github' | 'gitlab' | 'gitee'
+  /** Type: "github" | "gitlab" | "gitee" | "gitea" | "gerrit" | "icode" */
+  type: 'github' | 'gitlab' | 'gitee' | 'gitea' | 'gerrit' | 'icode'
 }
 
 export interface GitBranch {

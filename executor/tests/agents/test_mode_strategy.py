@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from executor.agents.claude_code.config_manager import create_claude_model_config
 from executor.agents.claude_code.docker_mode_strategy import DockerModeStrategy
 from executor.agents.claude_code.local_mode_strategy import LocalModeStrategy
 from executor.agents.claude_code.mode_strategy import (
@@ -426,7 +427,7 @@ class TestDockerModeStrategy:
     def test_save_config_files_returns_empty_env_config(
         self, strategy, temp_home, agent_config, claude_json_config
     ):
-        """Test that empty env config is returned (config is in settings.json)."""
+        """Test that runtime env config is returned for SDK child process."""
         with patch(
             "os.path.expanduser", side_effect=lambda p: p.replace("~", temp_home)
         ):
@@ -436,7 +437,8 @@ class TestDockerModeStrategy:
                 claude_json_config=claude_json_config,
             )
 
-            assert env_config == {}
+            assert env_config == agent_config["env"]
+            assert env_config["ANTHROPIC_AUTH_TOKEN"] == "sk-ant-api-test-key"
 
     def test_configure_client_options_injects_task_identity_env(self, strategy):
         """Docker mode should inject task identity env for task-scoped child context."""
@@ -465,6 +467,23 @@ class TestDockerModeStrategy:
         assert result["env"]["SKILLS_DIR"] == strategy.get_skills_directory()
         assert original_options["env"] == {"SOME_VAR": "value"}
         assert "WEGENT_SKILL_IDENTITY_TOKEN" not in os.environ
+
+    def test_configure_client_options_preserves_auth_env(self, strategy):
+        """Docker mode should forward Claude auth env to the SDK child process."""
+        result = strategy.configure_client_options(
+            options={"cwd": "/workspace"},
+            config_dir="/irrelevant",
+            env_config={
+                "ANTHROPIC_AUTH_TOKEN": "token-123",
+                "ANTHROPIC_API_KEY": "token-123",
+                "ANTHROPIC_CUSTOM_HEADERS": "x-test: 1",
+            },
+            task_identity_env={},
+        )
+
+        assert result["env"]["ANTHROPIC_AUTH_TOKEN"] == "token-123"
+        assert result["env"]["ANTHROPIC_API_KEY"] == "token-123"
+        assert result["env"]["ANTHROPIC_CUSTOM_HEADERS"] == "x-test: 1"
 
     def test_get_skills_directory(self, strategy, temp_home):
         """Test default ~/.claude/skills directory."""
@@ -533,3 +552,51 @@ class TestStrategyIntegration:
 
             agent = ClaudeCodeAgent(task_data, mock_emitter)
             assert isinstance(agent._mode_strategy, DockerModeStrategy)
+
+
+class TestClaudeModelConfig:
+    """Tests for Claude model env normalization."""
+
+    def test_create_claude_model_config_maps_auth_env_and_headers(self):
+        """Claude config should include runtime auth env and formatted headers."""
+        config = create_claude_model_config(
+            {
+                "agent_config": {
+                    "env": {
+                        "model": "claude",
+                        "model_id": "claude-sonnet-4-20250514",
+                        "small_model": "claude-3-5-haiku-20241022",
+                        "api_key": "sk-ant-test-key",
+                        "base_url": "https://gateway.example.com/v1",
+                        "custom_headers": {
+                            "X-User": "alice",
+                            "X-Trace": 42,
+                        },
+                    }
+                }
+            }
+        )
+
+        env = config["env"]
+        assert env["ANTHROPIC_AUTH_TOKEN"] == "sk-ant-test-key"
+        assert env["ANTHROPIC_API_KEY"] == "sk-ant-test-key"
+        assert env["ANTHROPIC_BASE_URL"] == "https://gateway.example.com"
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == "X-User: alice\nX-Trace: 42"
+        assert "custom_headers" not in env
+
+    def test_create_claude_model_config_formats_json_string_headers(self):
+        """JSON-string headers should be converted to Claude's env format."""
+        config = create_claude_model_config(
+            {
+                "agent_config": {
+                    "env": {
+                        "model": "claude",
+                        "model_id": "claude-sonnet-4-20250514",
+                        "api_key": "sk-ant-test-key",
+                        "default_headers": '{"X-Test":"abc","X-Count":2}',
+                    }
+                }
+            }
+        )
+
+        assert config["env"]["ANTHROPIC_CUSTOM_HEADERS"] == "X-Test: abc\nX-Count: 2"

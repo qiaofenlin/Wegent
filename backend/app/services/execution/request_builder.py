@@ -228,15 +228,18 @@ class TaskRequestBuilder:
                 {"name": s} if isinstance(s, str) else s for s in extra_available_skills
             ]
 
-        resolved_skills, resolved_preload_skills, resolved_user_selected, skill_refs = (
-            self._get_bot_skills(
-                bot=bot,
-                team=team,
-                user=user,
-                user_id=user.id,
-                user_preload_skills=user_preload_skills,
-                user_available_skills=user_available_skills,
-            )
+        (
+            resolved_skills,
+            resolved_preload_skills,
+            resolved_user_selected,
+            skill_refs,
+        ) = self._get_bot_skills(
+            bot=bot,
+            team=team,
+            user=user,
+            user_id=user.id,
+            user_preload_skills=user_preload_skills,
+            user_available_skills=user_available_skills,
         )
         preload_skill_refs = {
             name: skill_refs[name]
@@ -1336,9 +1339,9 @@ class TaskRequestBuilder:
             # Only for public skills (user_id=0) for security
             if skill.user_id == 0:
                 base_url = settings.BACKEND_INTERNAL_URL.rstrip("/")
-                skill_data["binary_download_url"] = (
-                    f"{base_url}/api/internal/skills/{skill.id}/binary"
-                )
+                skill_data[
+                    "binary_download_url"
+                ] = f"{base_url}/api/internal/skills/{skill.id}/binary"
 
         return skill_data
 
@@ -2139,7 +2142,8 @@ Response template:
         """Build user info dictionary.
 
         Git-related fields are stored in user.git_info JSON field as a list of git accounts.
-        Each account has: type, git_domain, git_token, git_id, git_login, git_email.
+        Each account has: type, git_domain, git_token, git_id, git_login, git_email,
+        and optional provider-specific fields such as ugate_token.
 
         Args:
             user: User model instance
@@ -2156,6 +2160,7 @@ Response template:
             "git_id": None,
             "git_login": None,
             "git_email": None,
+            "ugate_token": None,
         }
 
         # git_info is a list of git account configurations
@@ -2185,6 +2190,7 @@ Response template:
             user_info["git_id"] = matched_git_info.get("git_id")
             user_info["git_login"] = matched_git_info.get("git_login")
             user_info["git_email"] = matched_git_info.get("git_email")
+            user_info["ugate_token"] = matched_git_info.get("ugate_token")
 
         return user_info
 

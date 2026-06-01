@@ -6,7 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from shared.utils.git_util import clone_repo_with_token, is_gerrit_url
+from shared.utils.git_util import (
+    clone_icode_repo,
+    clone_repo_with_token,
+    is_gerrit_url,
+)
 
 
 class TestGitUtil:
@@ -47,6 +51,37 @@ class TestGitUtil:
         """Test SSH URLs containing gerrit are identified as Gerrit"""
         assert is_gerrit_url("git@github.com:test/repo.git") is False
         assert is_gerrit_url("ssh://git@gerrit.example.com:29418/project") is True
+
+    @patch("shared.utils.git_util._ensure_icode_cli_installed")
+    @patch("shared.utils.git_util.subprocess.run")
+    @patch("shared.utils.git_util.setup_git_hooks")
+    def test_clone_icode_repo_logs_in_with_ugate_token(
+        self, mock_setup_hooks, mock_subprocess, mock_ensure_icode
+    ):
+        """Test that icode clone uses the resolved CLI path for ugate login."""
+        mock_ensure_icode.return_value = "/root/.icode/bin/icode"
+        mock_subprocess.return_value = MagicMock(returncode=0)
+        mock_setup_hooks.return_value = (True, None)
+
+        success, error = clone_icode_repo(
+            "https://icode.baidu.com/baidu/hi/openclaw_infoflow",
+            "master",
+            "/tmp/openclaw_infoflow",
+            token="http-password",
+            username="icode-user",
+            ugate_token="ugate-jwt-token",
+        )
+
+        assert success is True
+        assert error is None
+        assert mock_subprocess.call_args_list[1].args[0] == [
+            "/root/.icode/bin/icode",
+            "login",
+            "--method",
+            "ugate",
+            "--token",
+            "ugate-jwt-token",
+        ]
 
     @patch("shared.utils.git_util.subprocess.run")
     @patch("shared.utils.git_util.setup_git_hooks")

@@ -18,6 +18,7 @@ from app.repository.gitea_provider import GiteaProvider
 from app.repository.gitee_provider import GiteeProvider
 from app.repository.github_provider import GitHubProvider
 from app.repository.gitlab_provider import GitLabProvider
+from app.repository.icode_provider import IcodeProvider
 from shared.utils.url_util import domains_match
 
 
@@ -34,6 +35,7 @@ class RepositoryService:
             "gitee": GiteeProvider(),
             "gitea": GiteaProvider(),
             "gerrit": GerritProvider(),
+            "icode": IcodeProvider(),
         }
 
     def _get_user_providers(self, user: User) -> List[str]:

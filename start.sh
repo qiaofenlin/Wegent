@@ -770,7 +770,7 @@ get_local_ip() {
         if command -v route &> /dev/null; then
             default_iface=$(route -n get default 2>/dev/null | grep "interface:" | awk '{print $2}')
             if [ -n "$default_iface" ] && command -v ifconfig &> /dev/null; then
-                ip=$(ifconfig "$default_iface" 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+                ip=$(ifconfig "$default_iface" 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
             fi
         fi
 
@@ -785,21 +785,21 @@ get_local_ip() {
 
     # Method 2: Try hostname -I (works on some Linux, gets first non-loopback IP)
     if [ -z "$ip" ] && command -v hostname &> /dev/null; then
-        ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+        ip=$(hostname -I 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
     fi
 
     # Method 3: Try macOS/BSD ifconfig with common interface patterns
     # Filter out docker/bridge interfaces (br-, docker, veth)
     if [ -z "$ip" ] && command -v ifconfig &> /dev/null; then
         # First try en0 (most common default on macOS)
-        ip=$(ifconfig en0 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+        ip=$(ifconfig en0 2>/dev/null | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
         # Then try en/eth interfaces
         if [ -z "$ip" ]; then
-            ip=$(ifconfig | grep -A 1 "^en\|^eth" | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+            ip=$(ifconfig | grep -A 1 "^en\|^eth" | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
         fi
         # If no en/eth interface, try any non-docker interface
         if [ -z "$ip" ]; then
-            ip=$(ifconfig | grep -v "^br-\|^docker\|^veth" | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+            ip=$(ifconfig | grep -v "^br-\|^docker\|^veth" | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
         fi
     fi
 
@@ -2029,11 +2029,15 @@ start_services() {
         # TASK_API_DOMAIN: URL for executor_manager to call backend (uses local IP so docker containers can access)
         # DOCKER_HOST_ADDR=localhost so executor_manager can access docker containers
         # CALLBACK_HOST: URL for executor containers to call back to executor_manager (uses local IP so docker containers can access)
+        # Initial dispatch waits for the executor start callback before returning.
         # --reload-dir: Watch shared module for changes (editable dependency)
         # --reload-exclude: Exclude .venv and __pycache__ to reduce CPU usage
         local CALLBACK_HOST="http://$LOCAL_IP:$EXECUTOR_MANAGER_PORT"
+        local initial_dispatch_timeout="${EXECUTOR_INITIAL_DISPATCH_TIMEOUT:-60}"
+        local initial_dispatch_max_retries="${EXECUTOR_INITIAL_DISPATCH_MAX_RETRIES:-2}"
+        local initial_dispatch_retry_interval="${EXECUTOR_INITIAL_DISPATCH_RETRY_INTERVAL:-2}"
         start_service "executor_manager" "executor_manager" \
-            "export EXECUTOR_IMAGE=$EXECUTOR_IMAGE && export TASK_API_DOMAIN=$TASK_API_DOMAIN && export DOCKER_HOST_ADDR=localhost && export NO_PROXY=localhost,127.0.0.1 && export no_proxy=localhost,127.0.0.1 && export NETWORK=wegent-network && export CALLBACK_HOST=$CALLBACK_HOST && source .venv/bin/activate && uvicorn main:app --reload --reload-dir . --reload-dir ../shared $RELOAD_EXCLUDE --host 0.0.0.0 --port $EXECUTOR_MANAGER_PORT --log-level debug" \
+            "export EXECUTOR_IMAGE=$EXECUTOR_IMAGE && export TASK_API_DOMAIN=$TASK_API_DOMAIN && export DOCKER_HOST_ADDR=localhost && export NO_PROXY=localhost,127.0.0.1 && export no_proxy=localhost,127.0.0.1 && export NETWORK=wegent-network && export CALLBACK_HOST=$CALLBACK_HOST && export EXECUTOR_INITIAL_DISPATCH_TIMEOUT=$initial_dispatch_timeout && export EXECUTOR_INITIAL_DISPATCH_MAX_RETRIES=$initial_dispatch_max_retries && export EXECUTOR_INITIAL_DISPATCH_RETRY_INTERVAL=$initial_dispatch_retry_interval && source .venv/bin/activate && uvicorn main:app --reload --reload-dir . --reload-dir ../shared $RELOAD_EXCLUDE --host 0.0.0.0 --port $EXECUTOR_MANAGER_PORT --log-level debug" \
             "$EXECUTOR_MANAGER_PORT"
     fi
 

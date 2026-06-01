@@ -69,6 +69,7 @@ class GitInfo(BaseModel):
     auth_type: Optional[str] = (
         None  # Authentication type for Gerrit: 'digest' or 'basic'
     )
+    ugate_token: Optional[str] = None  # ugate token for icode login
 
 
 class UserBase(BaseModel):

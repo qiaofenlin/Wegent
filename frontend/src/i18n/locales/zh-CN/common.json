@@ -16,7 +16,17 @@
     "requires_workspace": "需要仓库",
     "no_workspace_needed": "无需仓库",
     "no_workspace_description": "此任务将在不使用代码仓库的情况下运行",
-    "scroll_to_load_more": "滚动加载更多..."
+    "scroll_to_load_more": "滚动加载更多...",
+    "add_by_url": "通过 URL 添加仓库",
+    "icode_manual": {
+      "title": "添加 iCode / Gerrit 仓库",
+      "description": "粘贴 iCode 或 Gerrit 仓库的克隆 URL。分支无法自动获取，请手动填写。",
+      "url_label": "克隆 URL",
+      "url_placeholder": "ssh://user@icode.baidu.com:8235/baidu/group/repo 或 https://...",
+      "branch_label": "分支",
+      "branch_placeholder": "master",
+      "invalid_url": "URL 无效，需为包含仓库路径的 SSH 或 HTTPS 克隆地址。"
+    }
   },
   "actions": {
     "save": "保存",
@@ -877,16 +887,21 @@
     "platform_gitee": "Gitee",
     "platform_gitea": "Gitea",
     "platform_gerrit": "Gerrit",
+    "platform_icode": "icode",
     "domain": "平台域名",
     "username": "用户名",
     "token": {
       "title": "个人访问令牌",
       "title_gerrit": "HTTP password",
+      "title_icode": "HTTP 密码",
       "placeholder_github": "ghp_xxxxxxxxxxxxxxxxxxxx",
       "placeholder_gitee": "gitee 个人访问令牌",
       "placeholder_gitea": "gitea 个人访问令牌",
       "placeholder_gitlab": "glpat-xxxxxxxxxxxxxxxxxxxx",
-      "placeholder_gerrit": "从 Gerrit 设置中获取的 HTTP password"
+      "placeholder_gerrit": "从 Gerrit 设置中获取的 HTTP password",
+      "placeholder_icode": "从 icode 设置 > HTTP Credentials 获取的 HTTP 密码",
+      "title_ugate": "ugate token",
+      "placeholder_ugate": "从 uuap.baidu.com/agent/token 获取的 JWT token"
     },
     "howto": {
       "step1_visit": "1. 访问",
@@ -915,6 +930,11 @@
         "title": "如何获取 Gerrit HTTP password：",
         "step2": "2. 在 \"HTTP Credentials\" 下生成新的 HTTP password",
         "step3": "3. 复制用户名和password,并粘贴到此处"
+      },
+      "icode": {
+        "title": "如何获取 icode HTTP 密码：",
+        "step2": "2. 进入 \"HTTP Credentials\" 生成新的 HTTP 密码",
+        "step3": "3. 将密码和用户名粘贴到此处"
       }
     },
     "saving": "保存中...",

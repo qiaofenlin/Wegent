@@ -508,6 +508,25 @@ class TestDockerExecutor:
 
         assert mock_send.call_count == 2
 
+    @patch.dict(os.environ, {}, clear=True)
+    def test_dispatch_initial_task_default_timeout_allows_start_callback(
+        self, executor, sample_task
+    ):
+        """Regular initial dispatch should allow enough time for start callback."""
+        success_response = MagicMock()
+        success_response.status_code = 200
+
+        with patch.object(
+            executor, "_send_task_to_container", return_value=success_response
+        ) as mock_send:
+            executor._dispatch_initial_task_to_new_container(
+                sample_task, "new-executor", 8080
+            )
+
+        mock_send.assert_called_once_with(
+            sample_task, "host.docker.internal", 8080, timeout=60.0
+        )
+
     @patch.dict(
         os.environ,
         {

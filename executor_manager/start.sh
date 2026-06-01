@@ -44,11 +44,12 @@ get_local_ip() {
 
     # Method 3: Try macOS/BSD ifconfig (works on macOS)
     # Filter out docker/bridge interfaces (br-, docker, veth)
+    # Note: some ifconfig versions output "inet address x.x.x.x" instead of "inet x.x.x.x"
     if [ -z "$ip" ] && command -v ifconfig &> /dev/null; then
-        ip=$(ifconfig | grep -A 1 "^en\|^eth" | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+        ip=$(ifconfig | grep -A 1 "^en\|^eth" | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
         # If no en/eth interface, try any non-docker interface
         if [ -z "$ip" ]; then
-            ip=$(ifconfig | grep -v "^br-\|^docker\|^veth" | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -1)
+            ip=$(ifconfig | grep -v "^br-\|^docker\|^veth" | grep "inet " | grep -v 127.0.0.1 | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -1)
         fi
     fi
 
@@ -400,6 +401,13 @@ export DOCKER_HOST_ADDR="$DOCKER_HOST_ADDR"
 export TASK_API_DOMAIN="$TASK_API_DOMAIN"
 export PORT="$PORT"
 export NETWORK="$NETWORK_NAME"
+
+# Initial dispatch tuning (overridable via shell env before invoking start.sh).
+# Default 10s is too tight: the executor's process_async() awaits
+# emitter.start() which performs an HTTP callback to backend before returning.
+export EXECUTOR_INITIAL_DISPATCH_TIMEOUT="${EXECUTOR_INITIAL_DISPATCH_TIMEOUT:-60}"
+export EXECUTOR_INITIAL_DISPATCH_MAX_RETRIES="${EXECUTOR_INITIAL_DISPATCH_MAX_RETRIES:-2}"
+export EXECUTOR_INITIAL_DISPATCH_RETRY_INTERVAL="${EXECUTOR_INITIAL_DISPATCH_RETRY_INTERVAL:-2}"
 
 # Start with uvicorn directly (using uv's virtual environment)
 # --reload-exclude: Exclude .venv and __pycache__ to reduce CPU usage from file scanning

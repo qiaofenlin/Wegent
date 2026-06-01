@@ -329,14 +329,13 @@ class Agent:
             )
             git_token = decrypt_git_token(git_token)
 
+        ugate_token = user_config.get("ugate_token")
         username = user_config.get("git_login") if user_config else None
         branch_name = self.task_data.branch_name
         repo_name = git_util.get_repo_name_from_url(git_url)
         logger.info(
             f"Agent[{self.get_name()}][{self.task_id}] start download code for git url: {git_url}, branch name: {branch_name}"
         )
-
-        logger.info(user_config)
 
         project_path = self._resolve_git_project_path(repo_name)
         if self.project_path is None:
@@ -351,6 +350,7 @@ class Agent:
                 project_path,
                 username,
                 git_token,
+                ugate_token,
             )
 
             if success:

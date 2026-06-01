@@ -5,7 +5,7 @@
 'use client'
 
 import * as React from 'react'
-import { Check, FolderGit2, FolderX, Loader2 } from 'lucide-react'
+import { Check, FolderGit2, FolderX, Link2, Loader2 } from 'lucide-react'
 import { useTranslation } from '@/hooks/useTranslation'
 import { cn } from '@/lib/utils'
 import { Command, CommandInput } from '@/components/ui/command'
@@ -44,6 +44,11 @@ export interface RepoListViewProps {
   onRefreshClick: () => void
   /** Callback when clear selection is clicked (to disable workspace requirement) */
   onClearSelection?: () => void
+  /**
+   * Callback for manual URL entry (used for icode/Gerrit which lack REST API).
+   * When provided, a "Add by URL" button is rendered in the footer.
+   */
+  onManualEntry?: () => void
   /** Whether the repository list is loading */
   isLoading: boolean
   /** Whether a search is in progress */
@@ -71,6 +76,7 @@ export function RepoListView({
   onConfigureClick,
   onRefreshClick,
   onClearSelection,
+  onManualEntry,
   isLoading,
   isRefreshing,
   error,
@@ -222,6 +228,22 @@ export function RepoListView({
 
       {/* Footer */}
       <div className="border-t border-border">
+        {/* Manual URL entry button (e.g. for icode/Gerrit which lack REST API) */}
+        {onManualEntry && (
+          <button
+            type="button"
+            onClick={onManualEntry}
+            data-testid="repo-manual-entry-button"
+            className={cn(
+              'w-full flex items-center gap-2 px-3 py-2 text-sm',
+              'text-text-secondary hover:text-primary hover:bg-hover',
+              'transition-colors font-medium'
+            )}
+          >
+            <Link2 className="w-4 h-4" />
+            <span>{t('common:repos.add_by_url', 'Add repository by URL')}</span>
+          </button>
+        )}
         {/* Clear selection button - only show when callback provided */}
         {onClearSelection && (
           <button

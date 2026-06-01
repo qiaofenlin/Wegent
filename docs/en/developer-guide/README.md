@@ -11,6 +11,7 @@ Welcome to the Wegent Developer Guide! This guide will help you understand how t
 ### 🚀 Getting Started
 
 - [Development Setup](./setup.md) - Configure your local development environment
+- [Feature Documentation Policy](./feature-documentation-policy.md) - Delivery rule for standalone docs on every new requirement
 
 ### 🧪 Testing
 

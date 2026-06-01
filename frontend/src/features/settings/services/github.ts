@@ -23,7 +23,8 @@ export async function saveGitToken(
   username?: string,
   type?: GitInfo['type'],
   existingId?: string,
-  authType?: 'digest' | 'basic'
+  authType?: 'digest' | 'basic',
+  ugateToken?: string
 ): Promise<void> {
   // Auto-detect type if not provided
   let detectedType: GitInfo['type'] = type || 'gitlab'
@@ -61,6 +62,11 @@ export async function saveGitToken(
   // Add auth_type for Gerrit (always set to ensure value is preserved on updates)
   if (detectedType === 'gerrit') {
     gitInfoToSave.auth_type = authType || 'digest'
+  }
+
+  // Add ugate_token for icode
+  if (detectedType === 'icode' && ugateToken) {
+    gitInfoToSave.ugate_token = ugateToken
   }
 
   // Send only the single git_info item being saved

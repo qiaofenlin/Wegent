@@ -159,6 +159,44 @@ def build_claude_json_config() -> Dict[str, Any]:
     }
 
 
+def _stringify_env_value(value: Any) -> str:
+    """Convert arbitrary env values into stable string representations."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+    return str(value)
+
+
+def _format_anthropic_custom_headers(headers: Any) -> str:
+    """Convert custom headers into Claude Code's newline-delimited env format."""
+    if not headers:
+        return ""
+
+    if isinstance(headers, str):
+        stripped = headers.strip()
+        if not stripped:
+            return ""
+        try:
+            headers = json.loads(stripped)
+        except json.JSONDecodeError:
+            return stripped
+
+    if isinstance(headers, dict):
+        header_lines = []
+        for key, value in headers.items():
+            if key and value is not None:
+                header_lines.append(f"{key}: {_stringify_env_value(value)}")
+        return "\n".join(header_lines)
+
+    logger.warning(
+        "Unsupported custom headers type for Claude config: %s", type(headers).__name__
+    )
+    return ""
+
+
 def create_claude_model_config(
     bot_config: Dict[str, Any],
     user_name: Optional[str] = None,
@@ -189,12 +227,22 @@ def create_claude_model_config(
     api_key = env.get("api_key", "")
     api_key = resolve_env_value(api_key)
 
+    custom_headers = env.get("custom_headers") or env.get("default_headers")
+    if not custom_headers:
+        custom_headers = (
+            agent_config.get("default_headers")
+            or agent_config.get("DEFAULT_HEADERS")
+            or bot_config.get("default_headers")
+            or bot_config.get("DEFAULT_HEADERS")
+        )
+
     # Build environment configuration
     env_config = {
         "ANTHROPIC_MODEL": model_id,
         "ANTHROPIC_SMALL_FAST_MODEL": env.get("small_model", model_id),
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": env.get("small_model", model_id),
         "ANTHROPIC_AUTH_TOKEN": api_key,
+        "ANTHROPIC_API_KEY": api_key,
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": int(
             os.getenv("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "0")
         ),
@@ -210,8 +258,21 @@ def create_claude_model_config(
     if base_url:
         env_config["ANTHROPIC_BASE_URL"] = base_url.removesuffix("/v1")
 
+    formatted_custom_headers = _format_anthropic_custom_headers(custom_headers)
+    if formatted_custom_headers:
+        env_config["ANTHROPIC_CUSTOM_HEADERS"] = formatted_custom_headers
+
     # Add other environment variables except model_id, api_key, base_url
-    excluded_keys = {"model_id", "api_key", "base_url", "model", "small_model"}
+    excluded_keys = {
+        "model_id",
+        "api_key",
+        "base_url",
+        "model",
+        "small_model",
+        "custom_headers",
+        "default_headers",
+        "DEFAULT_HEADERS",
+    }
     for key, value in env.items():
         if key not in excluded_keys and value is not None:
             env_config[key] = value

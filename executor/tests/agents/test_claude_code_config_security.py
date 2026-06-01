@@ -272,6 +272,28 @@ class TestSaveClaudeConfigFiles:
                 claude_json_path
             ), f"claude.json should exist in Docker mode: {claude_json_path}"
 
+    def test_docker_mode_env_config_stored_for_runtime_process(
+        self, task_data, agent_config_with_sensitive_data, temp_workspace
+    ):
+        """Docker mode should keep auth env in memory for SDK child process injection."""
+        docker_home = os.path.join(temp_workspace, "docker_home")
+        os.makedirs(docker_home, exist_ok=True)
+
+        with (
+            patch("executor.config.config.EXECUTOR_MODE", "docker"),
+            patch(
+                "os.path.expanduser", side_effect=lambda p: p.replace("~", docker_home)
+            ),
+        ):
+            agent = self._create_agent(task_data)
+            agent._save_claude_config_files(agent_config_with_sensitive_data)
+
+            assert agent._claude_env_config == agent_config_with_sensitive_data["env"]
+            assert (
+                agent._claude_env_config["ANTHROPIC_AUTH_TOKEN"]
+                == "sk-ant-api-secret-key-12345"
+            )
+
     def test_local_mode_no_sensitive_data_in_any_files(
         self, task_data, agent_config_with_sensitive_data, temp_workspace
     ):

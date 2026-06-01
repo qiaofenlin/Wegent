@@ -38,6 +38,7 @@ class UserService(BaseService[User, UserUpdate, UserUpdate]):
         from app.repository.gitee_provider import GiteeProvider
         from app.repository.github_provider import GitHubProvider
         from app.repository.gitlab_provider import GitLabProvider
+        from app.repository.icode_provider import IcodeProvider
 
         # Provider mapping
         providers = {
@@ -46,7 +47,12 @@ class UserService(BaseService[User, UserUpdate, UserUpdate]):
             "gitee": GiteeProvider(),
             "gitea": GiteaProvider(),
             "gerrit": GerritProvider(),
+            "icode": IcodeProvider(),
         }
+
+        # Provider types that share Gerrit's HTTP API contract:
+        # they require a username and accept an auth_type (digest/basic).
+        gerrit_like_types = {"gerrit", "icode"}
 
         validated_git_info = []
 
@@ -63,9 +69,11 @@ class UserService(BaseService[User, UserUpdate, UserUpdate]):
             if provider_type not in providers:
                 raise ValidationException(f"Unsupported provider type: {provider_type}")
 
-            # Gerrit requires username
-            if provider_type == "gerrit" and not git_item.get("user_name"):
-                raise ValidationException("username is required for Gerrit")
+            # Gerrit and icode require username
+            if provider_type in gerrit_like_types and not git_item.get("user_name"):
+                raise ValidationException(
+                    f"username is required for {provider_type}"
+                )
 
             provider = providers[provider_type]
 
@@ -76,10 +84,13 @@ class UserService(BaseService[User, UserUpdate, UserUpdate]):
                 # Use specific provider's validate_token method with custom domain
                 git_domain = git_item.get("git_domain")
 
-                # Gerrit requires username parameter for validation
-                if provider_type == "gerrit":
+                # Gerrit-like providers require username + auth_type
+                if provider_type in gerrit_like_types:
                     username = git_item.get("user_name")
-                    auth_type = git_item.get("auth_type") or "digest"
+                    # icode defaults to basic auth, gerrit defaults to digest
+                    default_auth = "basic" if provider_type == "icode" else "digest"
+                    auth_type = git_item.get("auth_type") or default_auth
+                    git_item["auth_type"] = auth_type
                     validation_result = provider.validate_token(
                         plain_token,
                         git_domain=git_domain,
@@ -108,6 +119,11 @@ class UserService(BaseService[User, UserUpdate, UserUpdate]):
                 # Encrypt the token before storing
                 if is_token_encrypted(plain_token) is False:
                     git_item["git_token"] = encrypt_git_token(plain_token)
+
+                # Encrypt ugate_token for icode if provided
+                ugate_token = git_item.get("ugate_token")
+                if ugate_token and is_token_encrypted(ugate_token) is False:
+                    git_item["ugate_token"] = encrypt_git_token(ugate_token)
 
                 # Generate unique ID if not present
                 if not git_item.get("id"):

@@ -25,6 +25,8 @@ import { RepoListView } from './RepoListView'
 import { BranchListView } from './BranchListView'
 import { TaskContext } from '../../contexts/taskContext'
 import { getRepositoryIdentity } from './repositoryIdentity'
+import { IcodeManualUrlDialog } from './IcodeManualUrlDialog'
+import { useUser } from '@/features/common/UserContext'
 
 /**
  * Props for UnifiedRepositorySelector component
@@ -121,6 +123,14 @@ export default function UnifiedRepositorySelector({
   const [branchError, setBranchError] = useState<string | null>(null)
   const [userCleared, setUserCleared] = useState(false)
 
+  // Manual URL dialog state (used for icode/Gerrit which lack REST API)
+  const [manualDialogOpen, setManualDialogOpen] = useState(false)
+  const { user } = useUser()
+  const hasIcodeAccount = useMemo(
+    () => Boolean(user?.git_info?.some(g => g.type === 'icode' || g.type === 'gerrit')),
+    [user]
+  )
+
   // Track previous requiresWorkspace value to detect changes (e.g., team switch)
   const prevRequiresWorkspaceRef = useRef(requiresWorkspace)
 
@@ -198,6 +208,20 @@ export default function UnifiedRepositorySelector({
 
   // Fetch branches when repo changes
   useEffect(() => {
+    // For icode/Gerrit, branches are not fetchable via REST API; the branch is
+    // provided manually by IcodeManualUrlDialog alongside the repo, so we must
+    // NOT clear it here (clearing would clobber the value the dialog just set).
+    if (
+      selectedRepo &&
+      (selectedRepo.type === 'icode' || selectedRepo.type === 'gerrit')
+    ) {
+      setBranches([])
+      setBranchError(null)
+      setUserCleared(false)
+      setBranchLoading(false)
+      return
+    }
+
     // Clear previous branches immediately when repo changes to avoid showing stale data
     setBranches([])
     setBranchError(null)
@@ -542,6 +566,9 @@ export default function UnifiedRepositorySelector({
                       ? () => handleRequiresWorkspaceToggle(false)
                       : undefined
                   }
+                  onManualEntry={
+                    hasIcodeAccount ? () => setManualDialogOpen(true) : undefined
+                  }
                 />
               </motion.div>
             )}
@@ -577,6 +604,20 @@ export default function UnifiedRepositorySelector({
       {isSearching && (
         <Loader2 className="w-3 h-3 text-text-muted animate-spin flex-shrink-0 ml-1" />
       )}
+
+      {/* Manual URL dialog for icode/Gerrit repositories */}
+      <IcodeManualUrlDialog
+        open={manualDialogOpen}
+        onOpenChange={setManualDialogOpen}
+        onSubmit={(repo, branch) => {
+          if (!requiresWorkspace && onRequiresWorkspaceChange) {
+            onRequiresWorkspaceChange(true)
+          }
+          onRepoChange(repo)
+          onBranchChange(branch)
+          setIsOpen(false)
+        }}
+      />
     </div>
   )
 }

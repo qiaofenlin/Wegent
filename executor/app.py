@@ -19,6 +19,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -40,6 +41,42 @@ logger = setup_logger("task_executor")
 
 # Flag to track if skills have been initialized
 _skills_initialized = False
+
+
+def _build_openai_request_log_summary(openai_request: dict[str, Any]) -> dict[str, Any]:
+    """Summarize OpenAI request metadata without logging secrets."""
+    metadata = openai_request.get("metadata", {}) or {}
+    model_config = openai_request.get("model_config", {}) or {}
+    workspace = metadata.get("workspace", {}) or {}
+    repository = workspace.get("repository", {}) or {}
+
+    safe_model_config = {
+        "model": model_config.get("model"),
+        "model_id": model_config.get("model_id"),
+        "base_url": model_config.get("base_url"),
+        "api_format": model_config.get("api_format"),
+        "protocol": model_config.get("protocol"),
+        "has_api_key": bool(model_config.get("api_key")),
+        "default_header_keys": sorted((model_config.get("default_headers") or {}).keys())
+        if isinstance(model_config.get("default_headers"), dict)
+        else [],
+    }
+
+    return {
+        "task_id": metadata.get("task_id", -1),
+        "subtask_id": metadata.get("subtask_id", -1),
+        "background": openai_request.get("background", False),
+        "model": openai_request.get("model"),
+        "metadata_keys": sorted(metadata.keys()),
+        "bot_count": len(metadata.get("bot") or []),
+        "workspace": {
+            "branch": repository.get("branchName") or workspace.get("branch"),
+            "git_domain": repository.get("gitDomain"),
+            "git_repo": repository.get("gitRepo"),
+            "has_git_url": bool(metadata.get("git_url") or repository.get("gitUrl")),
+        },
+        "model_config": safe_model_config,
+    }
 
 
 # Define lifespan context manager for startup and shutdown events
@@ -600,10 +637,11 @@ async def openai_responses(request: Request):
     task_id = metadata.get("task_id", -1)
     subtask_id = metadata.get("subtask_id", -1)
     background = openai_request.get("background", False)
+    request_summary = _build_openai_request_log_summary(openai_request)
 
     logger.info(
         f"[v1/responses] Received OpenAI request: task_id={task_id}, "
-        f"subtask_id={subtask_id}, background={background}, request={openai_request}"
+        f"subtask_id={subtask_id}, background={background}, summary={request_summary}"
     )
 
     # Set task and user context for tracing

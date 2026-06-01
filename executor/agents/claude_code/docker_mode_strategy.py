@@ -66,9 +66,9 @@ class DockerModeStrategy(ExecutionModeStrategy):
             claude_json_config: Non-sensitive user preferences
 
         Returns:
-            Tuple of (config_dir, empty_dict):
+            Tuple of (config_dir, env_config):
             - config_dir: Path where config files were saved (~/.claude/)
-            - empty_dict: Empty dict (env config written to settings.json)
+            - env_config: Runtime env forwarded to Claude Code SDK child process
         """
         config_dir = self.get_config_directory(task_id)
         claude_json_path = os.path.expanduser("~/.claude.json")
@@ -87,8 +87,9 @@ class DockerModeStrategy(ExecutionModeStrategy):
 
         logger.info(f"Docker mode: Saved config files to {config_dir}")
 
-        # Return empty env_config since settings are written to file
-        return config_dir, {}
+        # Forward env config to the Claude SDK child process as well.
+        # Newer Claude Code builds read auth directly from process.env.
+        return config_dir, dict(agent_config.get("env", {}))
 
     def configure_client_options(
         self,
@@ -99,13 +100,14 @@ class DockerModeStrategy(ExecutionModeStrategy):
     ) -> Dict[str, Any]:
         """Configure SDK client with default behavior.
 
-        In Docker mode, the SDK reads configuration from settings.json
-        in the default location, so no special configuration is needed.
+        In Docker mode, the SDK still reads configuration from settings.json,
+        but auth-sensitive values also need to be present in the child
+        process environment for newer Claude Code builds.
 
         Args:
             options: Existing client options
             config_dir: Config directory (unused - SDK uses default)
-            env_config: Environment config (unused - written to settings.json)
+            env_config: Environment config forwarded to SDK child process
             task_identity_env: Task-scoped identity env variables
 
         Returns:

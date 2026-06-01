@@ -16,7 +16,17 @@
     "requires_workspace": "Requires Repository",
     "no_workspace_needed": "No repository needed",
     "no_workspace_description": "This task will run without a code repository",
-    "scroll_to_load_more": "Scroll to load more..."
+    "scroll_to_load_more": "Scroll to load more...",
+    "add_by_url": "Add repository by URL",
+    "icode_manual": {
+      "title": "Add iCode / Gerrit Repository",
+      "description": "Paste the clone URL of an iCode or Gerrit repository. The branch will not be auto-detected, please specify it manually.",
+      "url_label": "Clone URL",
+      "url_placeholder": "ssh://user@icode.baidu.com:8235/baidu/group/repo or https://...",
+      "branch_label": "Branch",
+      "branch_placeholder": "master",
+      "invalid_url": "Invalid URL. Expected an SSH or HTTPS clone URL containing the repository path."
+    }
   },
   "actions": {
     "save": "Save",
@@ -877,16 +887,21 @@
     "platform_gitee": "Gitee",
     "platform_gitea": "Gitea",
     "platform_gerrit": "Gerrit",
+    "platform_icode": "icode",
     "domain": "Platform Domain",
     "username": "Username",
     "token": {
       "title": "Personal Access Token",
       "title_gerrit": "HTTP password",
+      "title_icode": "HTTP password",
       "placeholder_github": "ghp_xxxxxxxxxxxxxxxxxxxx",
       "placeholder_gitee": "gitee-personal-access-token",
       "placeholder_gitea": "gitea-personal-access-token",
       "placeholder_gitlab": "glpat-xxxxxxxxxxxxxxxxxxxx",
-      "placeholder_gerrit": "HTTP password from Gerrit Settings"
+      "placeholder_gerrit": "HTTP password from Gerrit Settings",
+      "placeholder_icode": "HTTP password from icode Settings > HTTP Credentials",
+      "title_ugate": "ugate token",
+      "placeholder_ugate": "JWT token from uuap.baidu.com/agent/token"
     },
     "howto": {
       "step1_visit": "1. Visit",
@@ -915,6 +930,11 @@
         "title": "How to get Gerrit HTTP password:",
         "step2": "2. Generate a new HTTP password under \"HTTP Credentials\"",
         "step3": "3. Copy the username and password, and paste them here"
+      },
+      "icode": {
+        "title": "How to get your icode HTTP password:",
+        "step2": "2. Go to \"HTTP Credentials\" and generate a new HTTP password",
+        "step3": "3. Paste the password here along with your username"
       }
     },
     "saving": "Saving...",

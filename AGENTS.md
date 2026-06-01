@@ -24,6 +24,8 @@ Wegent is an open-source AI-native operating system for defining, organizing, an
 - **AGENTS.md**: Core concepts, coding principles, and quick reference only
 - **docs/**: Detailed architecture, design documents, and comprehensive guides
 - When adding new features, put detailed docs in `docs/en/` and `docs/zh/`, reference from AGENTS.md
+- Every user-visible feature, workflow change, integration expansion, or operational behavior change MUST have its own dedicated documentation file under `docs/`
+- Do not only update an existing overview page when the change introduces new behavior; add a standalone doc page for the new requirement and then link it from the relevant index/guide pages
 
 **Recent design docs:**
 - Prompt caching optimization via dynamic context injection: [`docs/zh/developer-guide/dynamic-context.md`](docs/zh/developer-guide/dynamic-context.md)
@@ -43,6 +45,7 @@ Wegent is an open-source AI-native operating system for defining, organizing, an
 - Document titles should NOT repeat the sidebar category name (e.g., use "概述" instead of "AI 编码" when under AI Coding category)
 - Write Chinese docs first (`docs/zh/`), then create English versions (`docs/en/`)
 - Use consistent heading hierarchy: `#` for title, `##` for sections, `###` for subsections
+- For feature delivery, documentation is part of the definition of done: implementation is not considered complete until the dedicated doc page exists and is linked from the relevant navigation or guide page
 
 **📚 Detailed Documentation:** See `docs/en/` or `docs/zh/` for comprehensive guides on setup, testing, architecture, and user guides.
 

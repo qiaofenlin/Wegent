@@ -634,7 +634,7 @@ class DockerExecutor(Executor):
                 0,
             )
             request_timeout = max(
-                float(os.getenv("EXECUTOR_INITIAL_DISPATCH_TIMEOUT", "10")),
+                float(os.getenv("EXECUTOR_INITIAL_DISPATCH_TIMEOUT", "60")),
                 0.1,
             )
         last_error = "unknown error"
